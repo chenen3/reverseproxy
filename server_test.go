@@ -78,8 +78,6 @@ func TestServer(t *testing.T) {
 }
 
 func TestReverseProxy(t *testing.T) {
-	// the request go straight to handler but not server,
-	// so request's target does not matter here
 	r := httptest.NewRequest("GET", "http://127.0.0.1"+foo, nil)
 	w := httptest.NewRecorder()
 	srv.httpSrv.Handler.ServeHTTP(w, r)
@@ -99,6 +97,8 @@ func TestReverseProxy(t *testing.T) {
 }
 
 func BenchmarkReverseProxyParallel(b *testing.B) {
+	// avoid flooding access log output
+	accessLogger.SetOutput(io.Discard)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			r := httptest.NewRequest("GET", "http://127.0.0.1"+foo, nil)

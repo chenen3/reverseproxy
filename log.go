@@ -6,17 +6,19 @@ import (
 )
 
 type _logger struct {
-	Printf func(format string, v ...interface{})
 	Infof  func(format string, v ...interface{})
 	Errorf func(format string, v ...interface{})
 	Error  func(v ...interface{})
 	Fatal  func(v ...interface{})
 }
 
-var logger = new(_logger)
+var (
+	logger = new(_logger)
+	// for access log only
+	accessLogger = log.New(os.Stdout, "", log.Ldate|log.Ltime)
+)
 
 func init() {
-	logger.Printf = log.New(os.Stderr, "", log.Ldate|log.Ltime).Printf
 	logger.Infof = log.New(os.Stderr, "INFO  ", log.Ldate|log.Ltime|log.Lshortfile).Printf
 	errLogger := log.New(os.Stderr, "ERROR ", log.Ldate|log.Ltime|log.Lshortfile)
 	logger.Errorf = errLogger.Printf

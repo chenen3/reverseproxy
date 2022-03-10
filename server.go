@@ -69,8 +69,9 @@ func NewServer(c *config) (*Server, error) {
 
 	handler := new(http.ServeMux)
 	handler.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// ip, _, _ := net.SplitHostPort(r.RemoteAddr)
-		// logger.Printf("remote ip %s, path %q, upstream %s", ip, r.URL.Path, "default")
+		//  usually this scenario should use log level
+		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+		accessLogger.Printf("remote ip %s, path %q, upstream %s", ip, r.URL.Path, "default")
 		_, err := io.WriteString(w, "welcome\n")
 		if err != nil {
 			w.WriteHeader(500)
@@ -82,8 +83,8 @@ func NewServer(c *config) (*Server, error) {
 			return nil, fmt.Errorf("invalid upstream: %v", upstream)
 		}
 		handler.HandleFunc(upstream.Pattern, func(w http.ResponseWriter, r *http.Request) {
-			// ip, _, _ := net.SplitHostPort(r.RemoteAddr)
-			// logger.Printf("remote ip %s, path %q, upstream %s", ip, r.URL.Path, upstream.Addr)
+			ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+			accessLogger.Printf("remote ip %s, path %q, upstream %s", ip, r.URL.Path, upstream.Addr)
 			u := *r.URL
 			u.Scheme = "http"
 			u.Host = upstream.Addr
