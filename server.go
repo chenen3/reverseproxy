@@ -69,7 +69,6 @@ func NewServer(c *config) (*Server, error) {
 
 	handler := new(http.ServeMux)
 	handler.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		//  usually this scenario should use log level
 		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 		accessLogger.Printf("remote ip %s, path %q, upstream %s", ip, r.URL.Path, "default")
 		_, err := io.WriteString(w, "welcome\n")

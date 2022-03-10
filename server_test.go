@@ -18,6 +18,9 @@ var (
 )
 
 func TestMain(m *testing.M) {
+	// avoid flooding access log output while benchmark
+	accessLogger.SetOutput(io.Discard)
+
 	ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Index(r.URL.Path, foo) == 0 {
 			logger.Errorf("pattern not trimmed")
@@ -36,26 +39,30 @@ func TestMain(m *testing.M) {
 	// random address
 	ln, _ := net.Listen("tcp", "127.0.0.1:")
 	ln.Close()
-
 	var err error
 	srv, err = NewServer(&config{
-		Listen: ln.Addr().String(),
-		Upstreams: []upstream{
-			{Pattern: foo, Addr: ts.Listener.Addr().String()},
-		},
+		Listen:    ln.Addr().String(),
+		Upstreams: []upstream{{Pattern: foo, Addr: ts.Listener.Addr().String()}},
 	})
 	if err != nil {
 		logger.Fatal(err)
 	}
-	defer srv.Close()
 	go func() {
-		if e := srv.Serve(); e != nil && e != http.ErrServerClosed {
+		e := srv.Serve()
+		if e != nil && e != http.ErrServerClosed {
 			logger.Error(e)
 		}
 	}()
 	<-srv.ready
 
-	os.Exit(m.Run())
+	code := m.Run()
+
+	err = srv.Close()
+	if err != nil {
+		logger.Error(err)
+	}
+
+	os.Exit(code)
 }
 
 func TestServer(t *testing.T) {
@@ -97,8 +104,6 @@ func TestReverseProxy(t *testing.T) {
 }
 
 func BenchmarkReverseProxyParallel(b *testing.B) {
-	// avoid flooding access log output
-	accessLogger.SetOutput(io.Discard)
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			r := httptest.NewRequest("GET", "http://127.0.0.1"+foo, nil)

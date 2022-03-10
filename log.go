@@ -23,5 +23,5 @@ func init() {
 	errLogger := log.New(os.Stderr, "ERROR ", log.Ldate|log.Ltime|log.Lshortfile)
 	logger.Errorf = errLogger.Printf
 	logger.Error = errLogger.Print
-	logger.Fatal = log.New(os.Stderr, "FATAL ", log.Ldate|log.Ltime|log.Lshortfile).Print
+	logger.Fatal = log.New(os.Stderr, "FATAL ", log.Ldate|log.Ltime|log.Lshortfile).Fatal
 }
