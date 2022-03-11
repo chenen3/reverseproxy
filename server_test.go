@@ -18,18 +18,15 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	// avoid flooding access log output while benchmark
-	accessLogger.SetOutput(io.Discard)
-
 	ts = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Index(r.URL.Path, foo) == 0 {
-			logger.Errorf("pattern not trimmed")
+			logErrorf("pattern not trimmed")
 			w.WriteHeader(500)
 			return
 		}
 
 		if _, err := io.WriteString(w, bar); err != nil {
-			logger.Error(err)
+			logError(err)
 			w.WriteHeader(500)
 			return
 		}
@@ -45,12 +42,13 @@ func TestMain(m *testing.M) {
 		Upstreams: []upstream{{Pattern: foo, Addr: ts.Listener.Addr().String()}},
 	})
 	if err != nil {
-		logger.Fatal(err)
+		logError(err)
+		os.Exit(1)
 	}
 	go func() {
 		e := srv.Serve()
 		if e != nil && e != http.ErrServerClosed {
-			logger.Error(e)
+			logError(e)
 		}
 	}()
 	<-srv.ready
@@ -59,7 +57,7 @@ func TestMain(m *testing.M) {
 
 	err = srv.Close()
 	if err != nil {
-		logger.Error(err)
+		logError(err)
 	}
 
 	os.Exit(code)

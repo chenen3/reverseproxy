@@ -69,12 +69,13 @@ func NewServer(c *config) (*Server, error) {
 
 	handler := new(http.ServeMux)
 	handler.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
-		accessLogger.Printf("remote ip %s, path %q, upstream %s", ip, r.URL.Path, "default")
+		if verbose {
+			logInfof("peer %s, path %q, upstream %s", r.RemoteAddr, r.URL.Path, "default")
+		}
 		_, err := io.WriteString(w, "welcome\n")
 		if err != nil {
 			w.WriteHeader(500)
-			logger.Error(err)
+			logError(err)
 		}
 	})
 	for _, upstream := range c.Upstreams {
@@ -82,8 +83,9 @@ func NewServer(c *config) (*Server, error) {
 			return nil, fmt.Errorf("invalid upstream: %v", upstream)
 		}
 		handler.HandleFunc(upstream.Pattern, func(w http.ResponseWriter, r *http.Request) {
-			ip, _, _ := net.SplitHostPort(r.RemoteAddr)
-			accessLogger.Printf("remote ip %s, path %q, upstream %s", ip, r.URL.Path, upstream.Addr)
+			if verbose {
+				logInfof("peer %s, path %q, upstream %s", r.RemoteAddr, r.URL.Path, upstream.Addr)
+			}
 			u := *r.URL
 			u.Scheme = "http"
 			u.Host = upstream.Addr
@@ -92,7 +94,7 @@ func NewServer(c *config) (*Server, error) {
 			defer cancelR()
 			req, err := http.NewRequestWithContext(ctxR, r.Method, u.String(), r.Body)
 			if err != nil {
-				logger.Error(err)
+				logError(err)
 				w.WriteHeader(500)
 				return
 			}
@@ -100,14 +102,14 @@ func NewServer(c *config) (*Server, error) {
 
 			resp, err := s.httpCli.Do(req)
 			if err != nil {
-				logger.Error(err)
+				logError(err)
 				w.WriteHeader(500)
 				return
 			}
 			defer resp.Body.Close()
 			_, err = io.Copy(w, resp.Body)
 			if err != nil {
-				logger.Error(err)
+				logError(err)
 				w.WriteHeader(500)
 				return
 			}
