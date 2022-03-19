@@ -32,13 +32,14 @@ type upstream struct {
 // Server provides reverse proxy service
 type Server struct {
 	httpSrv *http.Server
-	httpCli *http.Client
+	rt      http.RoundTripper
 	ctx     context.Context
 	cancel  context.CancelFunc
-	ready   chan struct{}
 }
 
-func NewServer(c *config) (*Server, error) {
+// NewServer initialize Server with specified config and RoundTripper,
+// if the RoundTripper is nil, then customized http.Transport will be used
+func NewServer(c *config, rt http.RoundTripper) (*Server, error) {
 	if c.MaxIdleConnsPerHost == 0 {
 		c.MaxIdleConnsPerHost = defaultMaxIdleConnsPerHost
 	}
@@ -49,26 +50,27 @@ func NewServer(c *config) (*Server, error) {
 	s := Server{
 		ctx:    ctx,
 		cancel: cancel,
-		ready:  make(chan struct{}),
 	}
 
-	transport := &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		ForceAttemptHTTP2: true,
-		// MaxIdleConns:          100,
-		MaxIdleConnsPerHost:   c.MaxIdleConnsPerHost,
-		IdleConnTimeout:       time.Duration(c.IdleConnTimeout) * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
+	if rt == nil {
+		rt = &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			ForceAttemptHTTP2: true,
+			// MaxIdleConns:          100,
+			MaxIdleConnsPerHost:   c.MaxIdleConnsPerHost,
+			IdleConnTimeout:       time.Duration(c.IdleConnTimeout) * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		}
 	}
-	s.httpCli = &http.Client{Transport: transport}
+	s.rt = rt
 
-	handler := new(http.ServeMux)
-	handler.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux := new(http.ServeMux)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if verbose {
 			logInfof("peer %s, path %q, upstream %s", r.RemoteAddr, r.URL.Path, "default")
 		}
@@ -82,7 +84,7 @@ func NewServer(c *config) (*Server, error) {
 		if upstream.Pattern == "" || upstream.Addr == "" {
 			return nil, fmt.Errorf("invalid upstream: %v", upstream)
 		}
-		handler.HandleFunc(upstream.Pattern, func(w http.ResponseWriter, r *http.Request) {
+		mux.HandleFunc(upstream.Pattern, func(w http.ResponseWriter, r *http.Request) {
 			if verbose {
 				logInfof("peer %s, path %q, upstream %s", r.RemoteAddr, r.URL.Path, upstream.Addr)
 			}
@@ -100,7 +102,7 @@ func NewServer(c *config) (*Server, error) {
 			}
 			req.RemoteAddr = r.RemoteAddr
 
-			resp, err := s.httpCli.Do(req)
+			resp, err := s.rt.RoundTrip(req)
 			if err != nil {
 				logError(err)
 				w.WriteHeader(500)
@@ -117,13 +119,12 @@ func NewServer(c *config) (*Server, error) {
 	}
 	s.httpSrv = &http.Server{
 		Addr:    c.Listen,
-		Handler: handler,
+		Handler: mux,
 	}
 	return &s, nil
 }
 
 func (s *Server) Serve() error {
-	close(s.ready)
 	return s.httpSrv.ListenAndServe()
 }
 

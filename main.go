@@ -22,7 +22,7 @@ func main() {
 
 	setVerbose(true)
 
-	s, err := NewServer(&c)
+	s, err := NewServer(&c, nil)
 	if err != nil {
 		logError(err)
 		return
@@ -32,8 +32,7 @@ func main() {
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		<-c
 		if e := s.Close(); e != nil {
-			logError(err)
-			return
+			panic(err)
 		}
 	}()
 	logInfof("start server")
