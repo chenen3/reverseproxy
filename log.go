@@ -12,15 +12,15 @@ var (
 )
 
 func logInfof(format string, a ...interface{}) {
-	_ = _infologger.Output(2, fmt.Sprintf(format, a...))
+	_infologger.Output(2, fmt.Sprintf(format, a...))
 }
 
 func logError(a ...interface{}) {
-	_ = _errLogger.Output(2, fmt.Sprint(a...))
+	_errLogger.Output(2, fmt.Sprint(a...))
 }
 
 func logErrorf(format string, a ...interface{}) {
-	_ = _errLogger.Output(2, fmt.Sprintf(format, 2))
+	_errLogger.Output(2, fmt.Sprintf(format, 2))
 }
 
 // avoid flooding log while benchmark

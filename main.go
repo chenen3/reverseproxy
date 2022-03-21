@@ -11,7 +11,8 @@ import (
 func main() {
 	f, err := os.Open("config.json")
 	if err != nil {
-
+		logError(err)
+		return
 	}
 	var c config
 	err = json.NewDecoder(f).Decode(&c)
