@@ -34,6 +34,7 @@ func TestReverseProxy(t *testing.T) {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
+		io.Copy(io.Discard, resp.Body)
 		t.Fatal("bad status code: ", resp.StatusCode)
 	}
 	bs, err := io.ReadAll(resp.Body)
