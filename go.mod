@@ -1,3 +1,3 @@
-module github.com/chenen3/reverseproxy
+module reverseproxy
 
-go 1.17
+go 1.19

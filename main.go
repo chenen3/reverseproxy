@@ -1,45 +1,42 @@
 package main
 
 import (
-	"encoding/json"
+	"syscall"
+	"errors"
+	"flag"
+	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"syscall"
 )
 
 func main() {
-	f, err := os.Open("config.json")
-	if err != nil {
-		logError(err)
+	var from, to string
+	flag.StringVar(&from, "from", "", "listen address")
+	flag.StringVar(&to, "to", "", "the URL that proxy to")
+	flag.Parse()
+	if from == "" {
+		fmt.Println("option -from required")
 		return
 	}
-	var c config
-	err = json.NewDecoder(f).Decode(&c)
-	if err != nil {
-		logError(err)
+	if to == "" {
+		fmt.Println("option -to required")
 		return
 	}
 
-	setVerbose(true)
-
-	s, err := NewServer(&c, nil)
-	if err != nil {
-		logError(err)
-		return
+	s := http.Server{
+		Addr:    from,
+		Handler: ReverseProxy(from, to),
 	}
 	go func() {
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		<-c
-		if e := s.Close(); e != nil {
-			panic(err)
-		}
+		ch := make(chan os.Signal, 1)
+		signal.Notify(ch, syscall.SIGTERM, os.Interrupt)
+		<-ch
+		s.Close()
 	}()
-	logInfof("start server")
-	err = s.Serve()
-	if err != nil && err != http.ErrServerClosed {
-		logError(err)
-		return
+	err := s.ListenAndServe()
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Fatal(err)
 	}
 }
